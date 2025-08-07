@@ -1,95 +1,145 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
+const ExcelJS = require('exceljs');
+const path = require('path');
+const fs = require('fs');
+const { addDays, addWeeks, addMonths, format } = require('date-fns');
 
-// ✅ Ruta GET de prueba
+// ✅ Obtener todas las reuniones
 router.get('/', (req, res) => {
-  res.json({ mensaje: '✅ Ruta de reuniones funcionando' });
-});
-
-// ✅ Ruta POST para guardar una reunión
-router.post('/', (req, res) => {
-  const { fecha, hora, tema, participantes, tipo, lugar, observaciones } = req.body;
-
-  const sql = `
-    INSERT INTO reuniones (fecha, hora, tema, participantes, tipo, lugar, observaciones)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `;
-
-  db.run(sql, [fecha, hora, tema, participantes, tipo, lugar, observaciones], function (err) {
-    if (err) {
-      console.error('❌ Error al insertar reunión:', err.message);
-      return res.status(500).json({ error: 'Error al guardar la reunión' });
-    }
-    res.json({ mensaje: '✅ Reunión registrada correctamente', id: this.lastID });
+  db.all('SELECT * FROM reuniones', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Error al obtener reuniones' });
+    res.json(rows);
   });
 });
 
-module.exports = router;
+// ✅ Crear reunión (adaptado a los campos del frontend)
+router.post('/', (req, res) => {
+  const {
+    fecha,
+    titulo,
+    horaInicio,
+    horaFin = '',
+    color,
+    observaciones = '',
+    participantes = '',
+    lugar = '',
+    repetir = '',
+    cantidad = 1
+  } = req.body;
 
-// ✅ Ruta GET para obtener reuniones por fecha
-router.get('/', (req, res) => {
-  const { fecha } = req.query;
+  const insertarReunion = (fechaInsertar) => {
+    const sql = `
+      INSERT INTO reuniones (fecha, hora, tema, participantes, tipo, lugar, observaciones)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    db.run(sql, [fechaInsertar, horaInicio, titulo, participantes, color, lugar, observaciones]);
+  };
 
-  if (!fecha) {
-    return res.status(400).json({ error: 'La fecha es requerida' });
+  insertarReunion(fecha);
+
+  if (repetir && cantidad > 1) {
+    let nuevaFecha = new Date(fecha);
+    for (let i = 1; i < cantidad; i++) {
+      if (repetir === 'diario') nuevaFecha = addDays(nuevaFecha, 1);
+      else if (repetir === 'semanal') nuevaFecha = addWeeks(nuevaFecha, 1);
+      else if (repetir === 'mensual') nuevaFecha = addMonths(nuevaFecha, 1);
+      insertarReunion(format(nuevaFecha, 'yyyy-MM-dd'));
+    }
   }
 
-  const sql = `SELECT * FROM reuniones WHERE fecha = ?`;
+  res.json({ mensaje: '✅ Reunión(es) registrada(s) correctamente', id: Date.now() });
+});
 
-  db.all(sql, [fecha], (err, rows) => {
-    if (err) {
-      console.error('❌ Error al consultar reuniones:', err.message);
-      return res.status(500).json({ error: 'Error al obtener reuniones' });
-    }
-    res.json({ reuniones: rows });
+// ✅ Actualizar una reunión (adaptado a los campos del frontend)
+router.put('/:id', (req, res) => {
+  const {
+    fecha,
+    titulo,
+    horaInicio,
+    color,
+    observaciones = '',
+    participantes = '',
+    lugar = ''
+  } = req.body;
+
+  const { id } = req.params;
+
+  const sql = `
+    UPDATE reuniones
+    SET fecha = ?, hora = ?, tema = ?, participantes = ?, tipo = ?, lugar = ?, observaciones = ?
+    WHERE id = ?
+  `;
+
+  db.run(sql, [fecha, horaInicio, titulo, participantes, color, lugar, observaciones, id], function (err) {
+    if (err) return res.status(500).json({ error: 'Error al actualizar la reunión' });
+    res.json({ mensaje: '✅ Reunión actualizada correctamente' });
   });
 });
 
-const ExcelJS = require('exceljs');
+// ✅ Eliminar una reunión
+router.delete('/:id', (req, res) => {
+  const { id } = req.params;
 
-router.get('/excel', (req, res) => {
-  const { fecha } = req.query;
-  if (!fecha) return res.status(400).json({ error: 'La fecha es requerida' });
+  db.run('DELETE FROM reuniones WHERE id = ?', [id], function (err) {
+    if (err) return res.status(500).json({ error: 'Error al eliminar la reunión' });
+    res.json({ mensaje: '🗑️ Reunión eliminada correctamente' });
+  });
+});
 
-  const sql = `SELECT * FROM reuniones WHERE fecha = ?`;
-  db.all(sql, [fecha], async (err, rows) => {
-    if (err) return res.status(500).json({ error: 'Error al generar Excel' });
+// ✅ Exportar a Excel
+router.get('/excel', async (req, res) => {
+  const { fecha, desde, hasta } = req.query;
+
+  let sql = '';
+  let params = [];
+  let nombreArchivo = '';
+
+  if (fecha) {
+    sql = `SELECT * FROM reuniones WHERE fecha = ?`;
+    params = [fecha];
+    nombreArchivo = `reuniones_${fecha}.xlsx`;
+  } else if (desde && hasta) {
+    sql = `SELECT * FROM reuniones WHERE fecha BETWEEN ? AND ? ORDER BY fecha`;
+    params = [desde, hasta];
+    nombreArchivo = `reuniones_${desde}_a_${hasta}.xlsx`;
+  } else {
+    return res.status(400).json({ error: 'Debe enviar fecha o desde y hasta' });
+  }
+
+  db.all(sql, params, async (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Error al consultar reuniones' });
 
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Reporte Airtable');
+    const sheet = workbook.addWorksheet('Reuniones');
 
-    // Título
-    sheet.mergeCells('A1:F1');
-    const title = sheet.getCell('A1');
-    title.value = `📋 REUNIONES DEL ${fecha}`;
-    title.font = { size: 16, bold: true, name: 'Segoe UI', color: { argb: 'FFFFFFFF' } };
-    title.alignment = { horizontal: 'center', vertical: 'middle' };
-    title.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF2F75B5' },
-    };
+    const logoPath = path.join(__dirname, 'assets', 'logo-eco.png');
+    if (fs.existsSync(logoPath)) {
+      const imageId = workbook.addImage({ filename: logoPath, extension: 'png' });
+      sheet.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: 150, height: 100 } });
+    }
 
-    // Columnas
-    sheet.columns = [
-      { header: '⏰ Hora', key: 'hora', width: 12 },
-      { header: '📝 Tema', key: 'tema', width: 35 },
-      { header: '👥 Participantes', key: 'participantes', width: 30 },
-      { header: '📂 Tipo', key: 'tipo', width: 20 },
-      { header: '📍 Lugar', key: 'lugar', width: 20 },
-      { header: '🧾 Observaciones', key: 'observaciones', width: 45 }
-    ];
+    sheet.addRow([]); sheet.addRow([]); sheet.addRow([]); sheet.addRow([]);
+    sheet.addRow([]); sheet.addRow([]); sheet.addRow([]);
 
-    // Encabezado (fila 2)
-    sheet.getRow(2).eachCell(cell => {
-      cell.font = { bold: true, name: 'Segoe UI', color: { argb: 'FFFFFFFF' } };
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF4F81BD' },
-      };
-      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    const textoTitulo = fecha
+      ? `REPORTE DE REUNIONES DEL ${fecha}`
+      : `REPORTE DE REUNIONES DEL ${desde} AL ${hasta}`;
+
+    sheet.mergeCells('C8:I8');
+    sheet.getCell('C8').value = textoTitulo;
+    sheet.getCell('C8').font = { bold: true, size: 13 };
+    sheet.getCell('C8').alignment = { vertical: 'middle', horizontal: 'center' };
+
+    const headers = ['Fecha', 'Hora', 'Tema', 'Participantes', 'Tipo', 'Lugar', 'Observaciones'];
+    sheet.addRow(headers);
+
+    const headerRow = sheet.getRow(9);
+    headerRow.font = { bold: true };
+    headerRow.alignment = { horizontal: 'center' };
+    headerRow.eachCell(cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCE5FF' } };
       cell.border = {
         top: { style: 'thin' },
         left: { style: 'thin' },
@@ -98,55 +148,19 @@ router.get('/excel', (req, res) => {
       };
     });
 
-    // Función para dar color según tipo
-    const getColorByTipo = (tipo) => {
-      switch (tipo?.toLowerCase()) {
-        case 'junta directiva': return 'FFDDEBF7'; // azul claro
-        case 'seguimiento':     return 'FFE2EFDA'; // verde claro
-        case 'técnica':         return 'FFFFF2CC'; // amarillo
-        default:                return 'FFF2F2F2'; // gris claro
-      }
-    };
-
-    // Agregar filas
-    rows.forEach((reunion) => {
-      const row = sheet.addRow({
-        hora: reunion.hora,
-        tema: reunion.tema,
-        participantes: reunion.participantes,
-        tipo: reunion.tipo,
-        lugar: reunion.lugar,
-        observaciones: reunion.observaciones
-      });
-
-      const fillColor = getColorByTipo(reunion.tipo);
-      row.eachCell((cell, colNumber) => {
-        cell.font = { name: 'Segoe UI', size: 11 };
-        cell.alignment = { vertical: 'top', wrapText: true };
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: fillColor }
-        };
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        };
-      });
+    rows.forEach(r => {
+      sheet.addRow([r.fecha, r.hora, r.tema, r.participantes, r.tipo, r.lugar, r.observaciones]);
     });
 
-    // Activar filtros como Airtable
-    sheet.autoFilter = {
-      from: 'A2',
-      to: 'F2'
-    };
+    sheet.autoFilter = { from: 'A9', to: 'G9' };
+    sheet.columns.forEach(col => col.width = 20);
+    sheet.headerFooter.oddFooter = '&C Eco Reprocesos - Reporte generado automáticamente';
 
-    // Descargar archivo
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=airtable_reuniones_${fecha}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename=${nombreArchivo}`);
     await workbook.xlsx.write(res);
     res.end();
   });
 });
+
+module.exports = router;

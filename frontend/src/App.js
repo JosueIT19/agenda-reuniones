@@ -1,10 +1,10 @@
 import './App.css';
-import CalendarioECO from './components/CalendarioECO';
+import Calendario from './components/Calendario';
 
 function App() {
   return (
     <div className="App">
-      <CalendarioECO />
+      <Calendario />
     </div>
   );
 }
