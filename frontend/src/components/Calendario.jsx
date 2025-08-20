@@ -36,6 +36,8 @@ export default function Calendario() {
   const [filtroTipo, setFiltroTipo] = useState('');
   const [modoEdicion, setModoEdicion] = useState(false);
   const [eventoEditando, setEventoEditando] = useState(null);
+  const [participantes, setParticipantes] = useState('');
+  const [lugar, setLugar] = useState('');
 
   useEffect(() => {
     fetch(`http://localhost:3000/api/reuniones`)
@@ -50,7 +52,9 @@ export default function Calendario() {
             horaInicio: evento.hora,
             horaFin: '',
             color: evento.tipo,
-            observaciones: evento.observaciones || ''
+            observaciones: evento.observaciones || '',
+            lugar: evento.lugar || '',
+            participantes: evento.participantes || ''
           });
         });
         setEventos(eventosCargados);
@@ -73,6 +77,8 @@ export default function Calendario() {
     setColor('');
     setObservaciones('');
     setRepeticion('');
+    setParticipantes('');
+    setLugar('');
     setEventoEditando(null);
     setModoEdicion(false);
     setModalAbierto(true);
@@ -91,14 +97,18 @@ export default function Calendario() {
             titulo,
             horaInicio,
             color,
-            observaciones
+            observaciones,
+            participantes,
+            lugar
           })
         });
 
         setEventos((prev) => {
           const copia = { ...prev };
           copia[fechaSeleccionada] = copia[fechaSeleccionada].map((ev) =>
-            ev.id === eventoEditando.id ? { ...ev, titulo, horaInicio, color, observaciones } : ev
+            ev.id === eventoEditando.id
+              ? { ...ev, titulo, horaInicio, color, observaciones, participantes, lugar }
+              : ev
           );
           return copia;
         });
@@ -140,7 +150,9 @@ export default function Calendario() {
         horaInicio,
         horaFin,
         color,
-        observaciones
+        observaciones,
+        participantes,
+        lugar
       };
 
       try {
@@ -155,7 +167,7 @@ export default function Calendario() {
 
         setEventos((prev) => ({
           ...prev,
-          [fecha]: [...(prev[fecha] || []), { id: idGenerado, titulo, horaInicio, horaFin, color, observaciones }]
+          [fecha]: [...(prev[fecha] || []), { id: idGenerado, titulo, horaInicio, horaFin, color, observaciones, participantes, lugar }]
         }));
       } catch (error) {
         console.error('Error al guardar reunión:', error);
@@ -165,7 +177,8 @@ export default function Calendario() {
     setModalAbierto(false);
   };
 
-  const eliminarEvento = async (id, fecha) => {
+
+    const eliminarEvento = async (id, fecha) => {
     try {
       await fetch(`http://localhost:3000/api/reuniones/${id}`, {
         method: 'DELETE'
@@ -240,15 +253,11 @@ export default function Calendario() {
       <div className="seccion-exportar">
         <label>Fecha única:</label>
         <input type="date" value={fechaUnica} onChange={(e) => setFechaUnica(e.target.value)} />
-
         <label>Desde:</label>
         <input type="date" value={rangoInicio} onChange={(e) => setRangoInicio(e.target.value)} />
         <label>Hasta:</label>
         <input type="date" value={rangoFin} onChange={(e) => setRangoFin(e.target.value)} />
-
-        <button className="btn-exportar" onClick={exportarExcelConFiltro}>
-          📥 Exportar Excel empresarial
-        </button>
+        <button className="btn-exportar" onClick={exportarExcelConFiltro}>📥 Exportar Excel empresarial</button>
       </div>
 
       <div className="grid-meses">
@@ -262,7 +271,7 @@ export default function Calendario() {
               <h3>{mesNombre}</h3>
               <div className="dias-semana">
                 <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
-              </div> 
+              </div>
               <div className="cuadro-dias">
                 {dias.map((day, index) => {
                   const esDelMes = isSameMonth(day, mesFecha);
@@ -306,45 +315,41 @@ export default function Calendario() {
           <div className="modal-contenido">
             <h3>{modoEdicion ? 'Editar' : 'Agregar'} reunión para {fechaSeleccionada}</h3>
 
-            {eventos[fechaSeleccionada]?.map((ev, i) => (
-  <li key={i}>
-    🕒 {ev.horaInicio} | {ev.titulo} ({ev.color})
-    
-    {ev.observaciones && (
-      <button
-        onClick={() => alert(`📄 Observación:\n${ev.observaciones}`)}
-        title="Ver observación"
-        style={{ marginLeft: '10px' }}
-      >
-        📄 Ver observación
-      </button>
-    )}
+            {eventos[fechaSeleccionada]?.length > 0 && (
+              <ul>
+                {eventos[fechaSeleccionada].map((ev, i) => (
+                  <li key={i}>
+                    🕒 {ev.horaInicio} | {ev.titulo} ({ev.color})
+                    {ev.observaciones && (
+                      <button
+                        onClick={() => alert(`📄 Observación:\n${ev.observaciones}`)}
+                        title="Ver observación"
+                        style={{ marginLeft: '10px' }}
+                      >
+                        📄 Ver observación
+                      </button>
+                    )}
+                    <button onClick={() => {
+                      setModoEdicion(true);
+                      setEventoEditando(ev);
+                      setTitulo(ev.titulo);
+                      setHoraInicio(ev.horaInicio);
+                      setColor(ev.color);
+                      setObservaciones(ev.observaciones);
+                      setLugar(ev.lugar || '');
+                      setParticipantes(ev.participantes || '');
+                    }}>✏️</button>
+                    <button onClick={() => eliminarEvento(ev.id, fechaSeleccionada)}>🗑️</button>
+                  </li>
+                ))}
+              </ul>
+            )}
 
-    <button
-      onClick={() => {
-        setModoEdicion(true);
-        setEventoEditando(ev);
-        setTitulo(ev.titulo);
-        setHoraInicio(ev.horaInicio);
-        setColor(ev.color);
-        setObservaciones(ev.observaciones);
-      }}
-      title="Editar"
-    >
-      ✏️
-    </button>
-
-    <button
-      onClick={() => eliminarEvento(ev.id, fechaSeleccionada)}
-      title="Eliminar"
-    >
-      🗑️
-    </button>
-  </li>
-))}
             <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Título" />
             <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
             <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Observaciones" />
+            <input type="text" value={lugar} onChange={(e) => setLugar(e.target.value)} placeholder="Lugar (Sala A, B o Virtual)" />
+            <input type="email" value={participantes} onChange={(e) => setParticipantes(e.target.value)} placeholder="Invitados (correos separados por coma)" />
             <select value={color} onChange={(e) => setColor(e.target.value)}>
               <option value="">Sin color</option>
               <option value="rojo">Rojo</option>
@@ -354,12 +359,14 @@ export default function Calendario() {
               <option value="naranja">Naranja</option>
               <option value="verde">Verde</option>
             </select>
-
             <select value={repeticion} onChange={(e) => setRepeticion(e.target.value)}>
               <option value="">No repetir</option>
               <option value="lunes">Todos los lunes del mes</option>
               <option value="quincenal">Cada 15 días</option>
               <option value="mensual">Mensualmente</option>
+              <option value="daily_7">Diario por 1 semana</option>
+              <option value="daily_15">Diario por 15 días</option>
+              <option value="daily_30">Diario por 1 mes</option>
             </select>
 
             <div className="modal-botones">
