@@ -22,6 +22,8 @@ const mapaCorreos = {
   'jose giron': 'Coordinadorplantapirolisis@eco-reprocesos.com',
   'laura peralta': 'Coordinadorplantapirolisis@eco-reprocesos.com',
   'nelson mejia': 'nmejia@eco-reprocesos.com',
+  'susan hernandez': 'contador.general@eco-reprocesos.com',
+  'osman ruano': 'coordinacionprocesos@eco-reprocesos.com',
 };
 
 function obtenerCorreo(participantes) {
