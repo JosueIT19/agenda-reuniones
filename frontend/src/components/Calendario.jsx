@@ -13,6 +13,9 @@ import {
 import { es } from 'date-fns/locale';
 import './ui/Calendario.css';
 
+// === API base: Render o localhost ===
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+
 function getLocalDateFixed(year, month, day = 1) {
   const date = new Date(Date.UTC(year, month, day, 12));
   return new Date(date.toLocaleString('en-US', { timeZone: 'America/Guatemala' }));
@@ -40,7 +43,7 @@ export default function Calendario() {
   const [lugar, setLugar] = useState('');
 
   useEffect(() => {
-    fetch(`http://localhost:3000/api/reuniones`)
+    fetch(`${API_URL}/api/reuniones`)
       .then((res) => res.json())
       .then((data) => {
         const eventosCargados = {};
@@ -58,7 +61,8 @@ export default function Calendario() {
           });
         });
         setEventos(eventosCargados);
-      });
+      })
+      .catch((e) => console.error('Error cargando reuniones:', e));
   }, []);
 
   const mesesDelAnio = Array.from({ length: 12 }, (_, i) => i);
@@ -89,7 +93,7 @@ export default function Calendario() {
 
     if (modoEdicion && eventoEditando) {
       try {
-        await fetch(`http://localhost:3000/api/reuniones/${eventoEditando.id}`, {
+        await fetch(`${API_URL}/api/reuniones/${eventoEditando.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -152,11 +156,12 @@ export default function Calendario() {
         color,
         observaciones,
         participantes,
-        lugar
+        lugar,
+        repetir: repeticion // importante para daily_7/15/30
       };
 
       try {
-        const res = await fetch('http://localhost:3000/api/reuniones', {
+        const res = await fetch(`${API_URL}/api/reuniones`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(nuevoEvento)
@@ -177,10 +182,9 @@ export default function Calendario() {
     setModalAbierto(false);
   };
 
-
-    const eliminarEvento = async (id, fecha) => {
+  const eliminarEvento = async (id, fecha) => {
     try {
-      await fetch(`http://localhost:3000/api/reuniones/${id}`, {
+      await fetch(`${API_URL}/api/reuniones/${id}`, {
         method: 'DELETE'
       });
 
@@ -196,7 +200,7 @@ export default function Calendario() {
 
   const exportarExcelConFiltro = async () => {
     try {
-      let url = 'http://localhost:3000/api/reuniones/excel';
+      let url = `${API_URL}/api/reuniones/excel`;
 
       if (fechaUnica) {
         url += `?fecha=${fechaUnica}`;
