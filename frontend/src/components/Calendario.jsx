@@ -1,3 +1,4 @@
+// Calendario.jsx
 import React, { useState, useEffect } from 'react';
 import {
   startOfMonth,
@@ -13,7 +14,7 @@ import {
 import { es } from 'date-fns/locale';
 import './ui/Calendario.css';
 
-// === API base: Render o localhost ===
+// Base de API (Render o local)
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 
 function getLocalDateFixed(year, month, day = 1) {
@@ -42,27 +43,34 @@ export default function Calendario() {
   const [participantes, setParticipantes] = useState('');
   const [lugar, setLugar] = useState('');
 
-  useEffect(() => {
-    fetch(`${API_URL}/api/reuniones`)
-      .then((res) => res.json())
-      .then((data) => {
-        const eventosCargados = {};
-        data.forEach((evento) => {
-          if (!eventosCargados[evento.fecha]) eventosCargados[evento.fecha] = [];
-          eventosCargados[evento.fecha].push({
-            id: evento.id,
-            titulo: evento.tema,
-            horaInicio: evento.hora,
-            horaFin: '',
-            color: evento.tipo,
-            observaciones: evento.observaciones || '',
-            lugar: evento.lugar || '',
-            participantes: evento.participantes || ''
-          });
+  // --- Cargar eventos (reutilizable) ---
+  const cargarEventos = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/reuniones`);
+      const data = await res.json();
+      const eventosCargados = {};
+      data.forEach((evento) => {
+        if (!eventosCargados[evento.fecha]) eventosCargados[evento.fecha] = [];
+        eventosCargados[evento.fecha].push({
+          id: evento.id,
+          titulo: evento.tema,
+          horaInicio: evento.hora,
+          horaFin: '',
+          color: evento.tipo,
+          observaciones: evento.observaciones || '',
+          lugar: evento.lugar || '',
+          participantes: evento.participantes || ''
         });
-        setEventos(eventosCargados);
-      })
-      .catch((e) => console.error('Error cargando reuniones:', e));
+      });
+      setEventos(eventosCargados);
+    } catch (e) {
+      console.error('Error cargando reuniones:', e);
+    }
+  };
+
+  useEffect(() => {
+    cargarEventos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const mesesDelAnio = Array.from({ length: 12 }, (_, i) => i);
@@ -89,8 +97,7 @@ export default function Calendario() {
   };
 
   const guardarEvento = async () => {
-    const fechasAInsertar = [fechaSeleccionada];
-
+    // Si estamos editando, PUT + recarga
     if (modoEdicion && eventoEditando) {
       try {
         await fetch(`${API_URL}/api/reuniones/${eventoEditando.id}`, {
@@ -106,17 +113,7 @@ export default function Calendario() {
             lugar
           })
         });
-
-        setEventos((prev) => {
-          const copia = { ...prev };
-          copia[fechaSeleccionada] = copia[fechaSeleccionada].map((ev) =>
-            ev.id === eventoEditando.id
-              ? { ...ev, titulo, horaInicio, color, observaciones, participantes, lugar }
-              : ev
-          );
-          return copia;
-        });
-
+        await cargarEventos();
         setModalAbierto(false);
         return;
       } catch (error) {
@@ -124,6 +121,9 @@ export default function Calendario() {
         return;
       }
     }
+
+    // Crear uno o varios eventos según la repetición local
+    const fechasAInsertar = [fechaSeleccionada];
 
     if (repeticion === 'lunes') {
       let fecha = new Date(fechaSeleccionada);
@@ -146,53 +146,41 @@ export default function Calendario() {
         fechasAInsertar.push(format(fecha, 'yyyy-MM-dd'));
       }
     }
+    // Nota: para daily_7/15/30 NO añadimos fechas extra; backend encola recordatorios.
 
-    for (const fecha of fechasAInsertar) {
-      const nuevoEvento = {
-        fecha,
-        titulo,
-        horaInicio,
-        horaFin,
-        color,
-        observaciones,
-        participantes,
-        lugar,
-        repetir: repeticion // importante para daily_7/15/30
-      };
-
-      try {
-        const res = await fetch(`${API_URL}/api/reuniones`, {
+    try {
+      // Enviar cada evento (si hay varios por "lunes/quincenal/mensual")
+      for (const fecha of fechasAInsertar) {
+        const nuevoEvento = {
+          fecha,
+          titulo,
+          horaInicio,
+          horaFin,
+          color,
+          observaciones,
+          participantes, // correos separados por coma o nombres
+          lugar,
+          repetir: repeticion // importa para daily_7/15/30
+        };
+        await fetch(`${API_URL}/api/reuniones`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(nuevoEvento)
         });
-
-        const data = await res.json();
-        const idGenerado = data.id || Date.now();
-
-        setEventos((prev) => ({
-          ...prev,
-          [fecha]: [...(prev[fecha] || []), { id: idGenerado, titulo, horaInicio, horaFin, color, observaciones, participantes, lugar }]
-        }));
-      } catch (error) {
-        console.error('Error al guardar reunión:', error);
       }
+      // Recargar del backend para tener IDs reales
+      await cargarEventos();
+      setModalAbierto(false);
+    } catch (error) {
+      console.error('Error al guardar reunión:', error);
     }
-
-    setModalAbierto(false);
   };
 
   const eliminarEvento = async (id, fecha) => {
     try {
-      await fetch(`${API_URL}/api/reuniones/${id}`, {
-        method: 'DELETE'
-      });
-
-      setEventos((prev) => {
-        const copia = { ...prev };
-        copia[fecha] = copia[fecha].filter((ev) => ev.id !== id);
-        return copia;
-      });
+      await fetch(`${API_URL}/api/reuniones/${id}`, { method: 'DELETE' });
+      // Recargar para mantener consistencia
+      await cargarEventos();
     } catch (error) {
       console.error('Error al eliminar reunión:', error);
     }
@@ -201,7 +189,6 @@ export default function Calendario() {
   const exportarExcelConFiltro = async () => {
     try {
       let url = `${API_URL}/api/reuniones/excel`;
-
       if (fechaUnica) {
         url += `?fecha=${fechaUnica}`;
       } else if (rangoInicio && rangoFin) {
@@ -210,7 +197,6 @@ export default function Calendario() {
         alert('❌ Selecciona una fecha o un rango válido');
         return;
       }
-
       const response = await fetch(url);
       const blob = await response.blob();
       const urlBlob = window.URL.createObjectURL(blob);
@@ -333,16 +319,20 @@ export default function Calendario() {
                         📄 Ver observación
                       </button>
                     )}
-                    <button onClick={() => {
-                      setModoEdicion(true);
-                      setEventoEditando(ev);
-                      setTitulo(ev.titulo);
-                      setHoraInicio(ev.horaInicio);
-                      setColor(ev.color);
-                      setObservaciones(ev.observaciones);
-                      setLugar(ev.lugar || '');
-                      setParticipantes(ev.participantes || '');
-                    }}>✏️</button>
+                    <button
+                      onClick={() => {
+                        setModoEdicion(true);
+                        setEventoEditando(ev);
+                        setTitulo(ev.titulo);
+                        setHoraInicio(ev.horaInicio);
+                        setColor(ev.color);
+                        setObservaciones(ev.observaciones);
+                        setLugar(ev.lugar || '');
+                        setParticipantes(ev.participantes || '');
+                      }}
+                    >
+                      ✏️
+                    </button>
                     <button onClick={() => eliminarEvento(ev.id, fechaSeleccionada)}>🗑️</button>
                   </li>
                 ))}
@@ -353,7 +343,12 @@ export default function Calendario() {
             <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
             <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Observaciones" />
             <input type="text" value={lugar} onChange={(e) => setLugar(e.target.value)} placeholder="Lugar (Sala A, B o Virtual)" />
-            <input type="email" value={participantes} onChange={(e) => setParticipantes(e.target.value)} placeholder="Invitados (correos separados por coma)" />
+            <input
+              type="text"
+              value={participantes}
+              onChange={(e) => setParticipantes(e.target.value)}
+              placeholder="Invitados (correos separados por coma o nombres)"
+            />
             <select value={color} onChange={(e) => setColor(e.target.value)}>
               <option value="">Sin color</option>
               <option value="rojo">Rojo</option>
@@ -368,9 +363,9 @@ export default function Calendario() {
               <option value="lunes">Todos los lunes del mes</option>
               <option value="quincenal">Cada 15 días</option>
               <option value="mensual">Mensualmente</option>
-              <option value="daily_7">Diario por 1 semana</option>
-              <option value="daily_15">Diario por 15 días</option>
-              <option value="daily_30">Diario por 1 mes</option>
+              <option value="daily_7">Diario por 1 semana (recordatorios hábiles)</option>
+              <option value="daily_15">Diario por 15 días (recordatorios hábiles)</option>
+              <option value="daily_30">Diario por 1 mes (recordatorios hábiles)</option>
             </select>
 
             <div className="modal-botones">
