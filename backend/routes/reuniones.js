@@ -52,7 +52,7 @@ const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.SMTP_USER || 'ecoreprocesos7@gmail.com',
-    pass: process.env.SMTP_PASS || '<<APP_PASSWORD>>' // usa app password real
+    pass: process.env.SMTP_PASS || 'yeed nnkt bbfa nmox' // usa app password real
   }
 });
 
