@@ -97,7 +97,14 @@ export default function Calendario() {
   };
 
   const guardarEvento = async () => {
-    // Si estamos editando, PUT + recarga
+    // Validación mínima
+    if (!titulo.trim() || !horaInicio) {
+      alert('Completa Título y Hora.');
+      return;
+    }
+    const colorReal = (color && color.trim()) ? color : 'verde';
+
+    // Si estamos editando: PUT + recarga
     if (modoEdicion && eventoEditando) {
       try {
         await fetch(`${API_URL}/api/reuniones/${eventoEditando.id}`, {
@@ -107,7 +114,7 @@ export default function Calendario() {
             fecha: fechaSeleccionada,
             titulo,
             horaInicio,
-            color,
+            color: colorReal,
             observaciones,
             participantes,
             lugar
@@ -149,40 +156,44 @@ export default function Calendario() {
     // Nota: para daily_7/15/30 NO añadimos fechas extra; backend encola recordatorios.
 
     try {
-      // Enviar cada evento (si hay varios por "lunes/quincenal/mensual")
       for (const fecha of fechasAInsertar) {
         const nuevoEvento = {
           fecha,
           titulo,
           horaInicio,
           horaFin,
-          color,
+          color: colorReal,
           observaciones,
           participantes, // correos separados por coma o nombres
           lugar,
           repetir: repeticion // importa para daily_7/15/30
         };
-        await fetch(`${API_URL}/api/reuniones`, {
+        const resp = await fetch(`${API_URL}/api/reuniones`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(nuevoEvento)
         });
+        if (!resp.ok) {
+          const t = await resp.text();
+          throw new Error(`Error guardando reunión: ${resp.status} ${t}`);
+        }
       }
-      // Recargar del backend para tener IDs reales
-      await cargarEventos();
+      await cargarEventos(); // IDs reales
       setModalAbierto(false);
     } catch (error) {
-      console.error('Error al guardar reunión:', error);
+      console.error(error);
+      alert('No se pudo guardar la reunión.');
     }
   };
 
-  const eliminarEvento = async (id, fecha) => {
+  const eliminarEvento = async (id) => {
     try {
-      await fetch(`${API_URL}/api/reuniones/${id}`, { method: 'DELETE' });
-      // Recargar para mantener consistencia
+      const r = await fetch(`${API_URL}/api/reuniones/${id}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error('Error al eliminar');
       await cargarEventos();
     } catch (error) {
       console.error('Error al eliminar reunión:', error);
+      alert('No se pudo eliminar.');
     }
   };
 
@@ -266,17 +277,23 @@ export default function Calendario() {
                 {dias.map((day, index) => {
                   const esDelMes = isSameMonth(day, mesFecha);
                   const fechaStr = format(day, 'yyyy-MM-dd');
+
                   const eventosDelDia = eventos[fechaStr] || [];
                   const eventosFiltrados = filtroTipo
                     ? eventosDelDia.filter(ev => ev.color === filtroTipo)
                     : eventosDelDia;
+
+                  // color del día = primer evento con color (aunque el primero no lo tenga)
+                  const colorDelDia =
+                    (eventosDelDia.find(ev => ev.color && ev.color.trim())?.color) || '';
+
                   const tooltip = eventosFiltrados.map(ev => `${ev.horaInicio} - ${ev.titulo}`).join('\n');
                   const esHoy = fechaStr === format(hoy, 'yyyy-MM-dd');
 
                   return (
                     <div
                       key={index}
-                      className={`dia ${esDelMes ? '' : 'fuera-mes'} ${esHoy ? 'hoy' : ''} ${eventosFiltrados[0]?.color || ''}`}
+                      className={`dia ${esDelMes ? '' : 'fuera-mes'} ${esHoy ? 'hoy' : ''} ${colorDelDia}`}
                       onClick={() => abrirFormulario(fechaStr)}
                       title={tooltip}
                     >
@@ -309,7 +326,7 @@ export default function Calendario() {
               <ul>
                 {eventos[fechaSeleccionada].map((ev, i) => (
                   <li key={i}>
-                    🕒 {ev.horaInicio} | {ev.titulo} ({ev.color})
+                    🕒 {ev.horaInicio} | {ev.titulo} ({ev.color || 'sin color'})
                     {ev.observaciones && (
                       <button
                         onClick={() => alert(`📄 Observación:\n${ev.observaciones}`)}
@@ -325,7 +342,7 @@ export default function Calendario() {
                         setEventoEditando(ev);
                         setTitulo(ev.titulo);
                         setHoraInicio(ev.horaInicio);
-                        setColor(ev.color);
+                        setColor(ev.color || 'verde');
                         setObservaciones(ev.observaciones);
                         setLugar(ev.lugar || '');
                         setParticipantes(ev.participantes || '');
@@ -333,7 +350,7 @@ export default function Calendario() {
                     >
                       ✏️
                     </button>
-                    <button onClick={() => eliminarEvento(ev.id, fechaSeleccionada)}>🗑️</button>
+                    <button onClick={() => eliminarEvento(ev.id)}>🗑️</button>
                   </li>
                 ))}
               </ul>
@@ -350,7 +367,7 @@ export default function Calendario() {
               placeholder="Invitados (correos separados por coma o nombres)"
             />
             <select value={color} onChange={(e) => setColor(e.target.value)}>
-              <option value="">Sin color</option>
+              <option value="">(Elegir color o usará verde)</option>
               <option value="rojo">Rojo</option>
               <option value="morado">Morado</option>
               <option value="amarillo">Amarillo</option>
