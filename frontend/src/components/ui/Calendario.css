@@ -232,3 +232,19 @@
     grid-template-columns: repeat(1, 1fr);
   }
 }
+
+/* Celdas coloreadas por tipo */
+.dia.contabilidad { background:#ef4444 !important; color:#fff !important; }   /* rojo */
+.dia.logitica     { background:#a855f7 !important; color:#fff !important; }   /* morado */
+.dia.ventas       { background:#f59e0b !important; color:#111 !important; }   /* amarillo/naranja */
+.dia.produccion   { background:#06b6d4 !important; color:#072 !important; }   /* cyan */
+.dia.rrhh         { background:#fb923c !important; color:#fff !important; }   /* naranja */
+.dia.hse          { background:#22c55e !important; color:#073 !important; }   /* verde */
+
+/* Cuadritos de la leyenda */
+.cuadro-color.contabilidad { background:#ef4444; }
+.cuadro-color.logitica     { background:#a855f7; }
+.cuadro-color.ventas       { background:#f59e0b; }
+.cuadro-color.produccion   { background:#06b6d4; }
+.cuadro-color.rrhh         { background:#fb923c; }
+.cuadro-color.hse          { background:#22c55e; }

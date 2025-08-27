@@ -22,6 +22,17 @@ function getLocalDateFixed(year, month, day = 1) {
   return new Date(date.toLocaleString('en-US', { timeZone: 'America/Guatemala' }));
 }
 
+// === Tipos/Categorías (valor = clase CSS / texto = etiqueta mostrada) ===
+// Nota: respeté tu texto "LOGITICA" tal cual lo escribiste.
+const TIPOS = [
+  { value: 'contabilidad', text: 'CONTABILIDAD' },
+  { value: 'logitica',     text: 'LOGITICA' },
+  { value: 'ventas',       text: 'VENTAS' },
+  { value: 'produccion',   text: 'PRODUCCION' },
+  { value: 'rrhh',         text: 'RRHH' },
+  { value: 'hse',          text: 'HSE' },
+];
+
 export default function Calendario() {
   const hoy = getLocalDateFixed(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
   const [currentYear, setCurrentYear] = useState(hoy.getFullYear());
@@ -31,7 +42,7 @@ export default function Calendario() {
   const [titulo, setTitulo] = useState('');
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFin, setHoraFin] = useState('');
-  const [color, setColor] = useState('');
+  const [color, setColor] = useState(''); // aquí guardamos el "tipo" (contabilidad, etc.)
   const [observaciones, setObservaciones] = useState('');
   const [repeticion, setRepeticion] = useState('');
   const [fechaUnica, setFechaUnica] = useState('');
@@ -56,7 +67,7 @@ export default function Calendario() {
           titulo: evento.tema,
           horaInicio: evento.hora,
           horaFin: '',
-          color: evento.tipo,
+          color: evento.tipo, // ahora será contabilidad/logitica/ventas/...
           observaciones: evento.observaciones || '',
           lugar: evento.lugar || '',
           participantes: evento.participantes || ''
@@ -102,7 +113,8 @@ export default function Calendario() {
       alert('Completa Título y Hora.');
       return;
     }
-    const colorReal = (color && color.trim()) ? color : 'verde';
+    // Default: HSE si no eliges tipo
+    const colorReal = (color && color.trim()) ? color : 'hse';
 
     // Si estamos editando: PUT + recarga
     if (modoEdicion && eventoEditando) {
@@ -114,7 +126,7 @@ export default function Calendario() {
             fecha: fechaSeleccionada,
             titulo,
             horaInicio,
-            color: colorReal,
+            color: colorReal, // <- guarda el tipo actual
             observaciones,
             participantes,
             lugar
@@ -162,11 +174,11 @@ export default function Calendario() {
           titulo,
           horaInicio,
           horaFin,
-          color: colorReal,
+          color: colorReal, // <- guarda el tipo (contabilidad/logitica/...)
           observaciones,
-          participantes, // correos separados por coma o nombres
+          participantes,
           lugar,
-          repetir: repeticion // importa para daily_7/15/30
+          repetir: repeticion
         };
         const resp = await fetch(`${API_URL}/api/reuniones`, {
           method: 'POST',
@@ -242,12 +254,9 @@ export default function Calendario() {
         <label>Filtrar por tipo:&nbsp;</label>
         <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
           <option value="">-- Mostrar todos --</option>
-          <option value="rojo">Pago de Planilla</option>
-          <option value="morado">Pago Extra</option>
-          <option value="amarillo">Corte Final</option>
-          <option value="cyan">Corte Inicio</option>
-          <option value="naranja">Recepción Documentos</option>
-          <option value="verde">Evento Especial</option>
+          {TIPOS.map(t => (
+            <option key={t.value} value={t.value}>{t.text}</option>
+          ))}
         </select>
       </div>
 
@@ -283,7 +292,7 @@ export default function Calendario() {
                     ? eventosDelDia.filter(ev => ev.color === filtroTipo)
                     : eventosDelDia;
 
-                  // color del día = primer evento con color (aunque el primero no lo tenga)
+                  // color del día = primer evento con tipo/color definido
                   const colorDelDia =
                     (eventosDelDia.find(ev => ev.color && ev.color.trim())?.color) || '';
 
@@ -309,12 +318,9 @@ export default function Calendario() {
 
       <div className="leyenda">
         <h4>Leyenda:</h4>
-        <div><span className="cuadro-color rojo"></span>Pago de Planilla</div>
-        <div><span className="cuadro-color morado"></span>Pago Extra</div>
-        <div><span className="cuadro-color amarillo"></span>Corte Final</div>
-        <div><span className="cuadro-color cyan"></span>Corte Inicio</div>
-        <div><span className="cuadro-color naranja"></span>Recepción Documentos</div>
-        <div><span className="cuadro-color verde"></span>Evento Especial</div>
+        {TIPOS.map(t => (
+          <div key={t.value}><span className={`cuadro-color ${t.value}`}></span>{t.text}</div>
+        ))}
       </div>
 
       {modalAbierto && (
@@ -326,7 +332,7 @@ export default function Calendario() {
               <ul>
                 {eventos[fechaSeleccionada].map((ev, i) => (
                   <li key={i}>
-                    🕒 {ev.horaInicio} | {ev.titulo} ({ev.color || 'sin color'})
+                    🕒 {ev.horaInicio} | {ev.titulo} ({ev.color || 'sin tipo'})
                     {ev.observaciones && (
                       <button
                         onClick={() => alert(`📄 Observación:\n${ev.observaciones}`)}
@@ -342,7 +348,7 @@ export default function Calendario() {
                         setEventoEditando(ev);
                         setTitulo(ev.titulo);
                         setHoraInicio(ev.horaInicio);
-                        setColor(ev.color || 'verde');
+                        setColor(ev.color || 'hse');
                         setObservaciones(ev.observaciones);
                         setLugar(ev.lugar || '');
                         setParticipantes(ev.participantes || '');
@@ -366,15 +372,14 @@ export default function Calendario() {
               onChange={(e) => setParticipantes(e.target.value)}
               placeholder="Invitados (correos separados por coma o nombres)"
             />
+
             <select value={color} onChange={(e) => setColor(e.target.value)}>
-              <option value="">(Elegir color o usará verde)</option>
-              <option value="rojo">Rojo</option>
-              <option value="morado">Morado</option>
-              <option value="amarillo">Amarillo</option>
-              <option value="cyan">Cyan</option>
-              <option value="naranja">Naranja</option>
-              <option value="verde">Verde</option>
+              <option value="">(Elegir tipo o usará HSE)</option>
+              {TIPOS.map(t => (
+                <option key={t.value} value={t.value}>{t.text}</option>
+              ))}
             </select>
+
             <select value={repeticion} onChange={(e) => setRepeticion(e.target.value)}>
               <option value="">No repetir</option>
               <option value="lunes">Todos los lunes del mes</option>
