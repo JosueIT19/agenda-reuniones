@@ -22,15 +22,24 @@ function getLocalDateFixed(year, month, day = 1) {
   return new Date(date.toLocaleString('en-US', { timeZone: 'America/Guatemala' }));
 }
 
-// === Tipos/Categorías (valor = clase CSS / texto = etiqueta mostrada) ===
-// Nota: respeté tu texto "LOGITICA" tal cual lo escribiste.
+/**
+ * TIPOS/CATEGORÍAS
+ * value = clase CSS y valor que guardamos en backend (sin espacios, minúsculas)
+ * text  = etiqueta visible en UI (puede llevar acentos/mayúsculas)
+ * IMPORTANTE: estos "value" deben tener su clase equivalente en el CSS (.dia.<value> y .cuadro-color.<value>)
+ */
 const TIPOS = [
-  { value: 'contabilidad', text: 'CONTABILIDAD' },
-  { value: 'logitica',     text: 'LOGITICA' },
-  { value: 'ventas',       text: 'VENTAS' },
-  { value: 'produccion',   text: 'PRODUCCION' },
-  { value: 'rrhh',         text: 'RRHH' },
-  { value: 'hse',          text: 'HSE' },
+  { value: 'contabilidad',   text: 'CONTABILIDAD' },
+  { value: 'logitica',       text: 'LOGITICA' }, // se respeta tu texto original
+  { value: 'ventas',         text: 'VENTAS' },
+  { value: 'produccion',     text: 'PRODUCCION' },
+  { value: 'rrhh',           text: 'RRHH' },
+  { value: 'hse',            text: 'HSE' },
+  // NUEVOS:
+  { value: 'it',             text: 'IT' },
+  { value: 'direccion',      text: 'DIRECCION' },
+  { value: 'gestion_calidad',text: 'GESTION DE CALIDAD' },
+  { value: 'supervision',    text: 'SUPERVISION' },
 ];
 
 export default function Calendario() {
@@ -42,7 +51,7 @@ export default function Calendario() {
   const [titulo, setTitulo] = useState('');
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFin, setHoraFin] = useState('');
-  const [color, setColor] = useState(''); // aquí guardamos el "tipo" (contabilidad, etc.)
+  const [color, setColor] = useState(''); // aquí guardamos el "tipo"
   const [observaciones, setObservaciones] = useState('');
   const [repeticion, setRepeticion] = useState('');
   const [fechaUnica, setFechaUnica] = useState('');
@@ -67,7 +76,7 @@ export default function Calendario() {
           titulo: evento.tema,
           horaInicio: evento.hora,
           horaFin: '',
-          color: evento.tipo, // ahora será contabilidad/logitica/ventas/...
+          color: evento.tipo, // contabilidad / it / direccion / ...
           observaciones: evento.observaciones || '',
           lugar: evento.lugar || '',
           participantes: evento.participantes || ''
@@ -108,15 +117,13 @@ export default function Calendario() {
   };
 
   const guardarEvento = async () => {
-    // Validación mínima
     if (!titulo.trim() || !horaInicio) {
       alert('Completa Título y Hora.');
       return;
     }
-    // Default: HSE si no eliges tipo
+    // Si no elige tipo, usamos HSE por defecto:
     const colorReal = (color && color.trim()) ? color : 'hse';
 
-    // Si estamos editando: PUT + recarga
     if (modoEdicion && eventoEditando) {
       try {
         await fetch(`${API_URL}/api/reuniones/${eventoEditando.id}`, {
@@ -126,7 +133,7 @@ export default function Calendario() {
             fecha: fechaSeleccionada,
             titulo,
             horaInicio,
-            color: colorReal, // <- guarda el tipo actual
+            color: colorReal,
             observaciones,
             participantes,
             lugar
@@ -141,7 +148,7 @@ export default function Calendario() {
       }
     }
 
-    // Crear uno o varios eventos según la repetición local
+    // Crear uno o varios eventos según repetición local
     const fechasAInsertar = [fechaSeleccionada];
 
     if (repeticion === 'lunes') {
@@ -165,7 +172,6 @@ export default function Calendario() {
         fechasAInsertar.push(format(fecha, 'yyyy-MM-dd'));
       }
     }
-    // Nota: para daily_7/15/30 NO añadimos fechas extra; backend encola recordatorios.
 
     try {
       for (const fecha of fechasAInsertar) {
@@ -174,7 +180,7 @@ export default function Calendario() {
           titulo,
           horaInicio,
           horaFin,
-          color: colorReal, // <- guarda el tipo (contabilidad/logitica/...)
+          color: colorReal,
           observaciones,
           participantes,
           lugar,
@@ -190,7 +196,7 @@ export default function Calendario() {
           throw new Error(`Error guardando reunión: ${resp.status} ${t}`);
         }
       }
-      await cargarEventos(); // IDs reales
+      await cargarEventos();
       setModalAbierto(false);
     } catch (error) {
       console.error(error);
@@ -271,7 +277,7 @@ export default function Calendario() {
       </div>
 
       <div className="grid-meses">
-        {mesesDelAnio.map((mesIndex) => {
+        {Array.from({ length: 12 }, (_, mesIndex) => {
           const mesFecha = getLocalDateFixed(currentYear, mesIndex);
           const dias = generarDiasDelMes(mesFecha);
           const mesNombre = format(mesFecha, 'MMMM - yyyy', { locale: es });
@@ -319,7 +325,9 @@ export default function Calendario() {
       <div className="leyenda">
         <h4>Leyenda:</h4>
         {TIPOS.map(t => (
-          <div key={t.value}><span className={`cuadro-color ${t.value}`}></span>{t.text}</div>
+          <div key={t.value}>
+            <span className={`cuadro-color ${t.value}`}></span>{t.text}
+          </div>
         ))}
       </div>
 
@@ -353,10 +361,11 @@ export default function Calendario() {
                         setLugar(ev.lugar || '');
                         setParticipantes(ev.participantes || '');
                       }}
+                      title="Editar"
                     >
                       ✏️
                     </button>
-                    <button onClick={() => eliminarEvento(ev.id)}>🗑️</button>
+                    <button onClick={() => eliminarEvento(ev.id)} title="Eliminar">🗑️</button>
                   </li>
                 ))}
               </ul>

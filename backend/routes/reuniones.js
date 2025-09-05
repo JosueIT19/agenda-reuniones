@@ -18,13 +18,16 @@ const mapaCorreos = {
   'sergio ramirez': 'soporte.it@eco-reprocesos.com',
   'anaby cabrera': 'a.cabrera@eco-reprocesos.com',
   'jaime barona': 'j.barona@eco-reprocesos.com',
-  'cristian monterros': 'C.finanzas@eco-reprocesos.com',
+  'cristian monterroso': 'C.finanzas@eco-reprocesos.com',
   'heedrick cardenas': 'jefaturalogistica@eco-reprocesos.com',
   'jose giron': 'Coordinadorplantapirolisis@eco-reprocesos.com',
   'laura peralta': 'Coordinadorplantapirolisis@eco-reprocesos.com',
   'nelson mejia': 'nmejia@eco-reprocesos.com',
   'susan hernandez': 'contador.general@eco-reprocesos.com',
   'osman ruano': 'coordinacionprocesos@eco-reprocesos.com',
+  'william garcia': 'Coordinadorplanta@eco-reprocesos.com',
+  'karoline perez': 'compras@eco-reprocesos.com',
+  'silvia sanchez': 'ssanchez@eco-reprocesos.com'
 };
 
 // Soporta 1 nombre o una lista separada por comas

@@ -234,17 +234,29 @@
 }
 
 /* Celdas coloreadas por tipo */
-.dia.contabilidad { background:#ef4444 !important; color:#fff !important; }   /* rojo */
-.dia.logitica     { background:#a855f7 !important; color:#fff !important; }   /* morado */
-.dia.ventas       { background:#f59e0b !important; color:#111 !important; }   /* amarillo/naranja */
-.dia.produccion   { background:#06b6d4 !important; color:#072 !important; }   /* cyan */
-.dia.rrhh         { background:#fb923c !important; color:#fff !important; }   /* naranja */
-.dia.hse          { background:#22c55e !important; color:#073 !important; }   /* verde */
+.dia.contabilidad { background: #ef4444 !important; color: #fff !important; } /* rojo */
+.dia.logitica     { background: #a855f7 !important; color: #fff !important; } /* morado */
+.dia.ventas       { background: #f59e0b !important; color: #111 !important; } /* amarillo/naranja */
+.dia.produccion   { background: #06b6d4 !important; color: #072 !important; } /* cyan */
+.dia.rrhh         { background: #fb923c !important; color: #fff !important; } /* naranja */
+.dia.hse          { background: #22c55e !important; color: #073 !important; } /* verde */
+
+/* NUEVOS TIPOS */
+.dia.it              { background: #1e3a8a !important; color: #fff !important; } /* azul oscuro */
+.dia.direccion       { background: #4b5563 !important; color: #fff !important; } /* gris oscuro */
+.dia.gestion_calidad { background: #ec4899 !important; color: #fff !important; } /* rosa */
+.dia.supervision     { background: #84cc16 !important; color: #0b3 !important; } /* verde lima */
 
 /* Cuadritos de la leyenda */
-.cuadro-color.contabilidad { background:#ef4444; }
-.cuadro-color.logitica     { background:#a855f7; }
-.cuadro-color.ventas       { background:#f59e0b; }
-.cuadro-color.produccion   { background:#06b6d4; }
-.cuadro-color.rrhh         { background:#fb923c; }
-.cuadro-color.hse          { background:#22c55e; }
+.cuadro-color.contabilidad   { background: #ef4444; }
+.cuadro-color.logitica       { background: #a855f7; }
+.cuadro-color.ventas         { background: #f59e0b; }
+.cuadro-color.produccion     { background: #06b6d4; }
+.cuadro-color.rrhh           { background: #fb923c; }
+.cuadro-color.hse            { background: #22c55e; }
+
+/* NUEVOS TIPOS */
+.cuadro-color.it              { background: #1e3a8a; }
+.cuadro-color.direccion       { background: #4b5563; }
+.cuadro-color.gestion_calidad { background: #ec4899; }
+.cuadro-color.supervision     { background: #84cc16; }
