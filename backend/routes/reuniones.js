@@ -27,7 +27,8 @@ const mapaCorreos = {
   'osman ruano': 'coordinacionprocesos@eco-reprocesos.com',
   'william garcia': 'Coordinadorplanta@eco-reprocesos.com',
   'karoline perez': 'compras@eco-reprocesos.com',
-  'silvia sanchez': 'ssanchez@eco-reprocesos.com'
+  'silvia sanchez': 'ssanchez@eco-reprocesos.com',
+  'muriel de figueroa': 'coordinacionrrhh@eco-reprocesos.com',
 };
 
 // Soporta 1 nombre o una lista separada por comas
