@@ -21,7 +21,7 @@ const mapaCorreos = {
   'cristian monterroso': 'C.finanzas@eco-reprocesos.com',
   'heedrick cardenas': 'jefaturalogistica@eco-reprocesos.com',
   'jose giron': 'Coordinadorplantapirolisis@eco-reprocesos.com',
-  'laura peralta': 'Coordinadorplantapirolisis@eco-reprocesos.com',
+  'laura peralta': 'CoordinadoraHSE@eco-reprocesos.com',
   'nelson mejia': 'nmejia@eco-reprocesos.com',
   'susan hernandez': 'contador.general@eco-reprocesos.com',
   'osman ruano': 'coordinacionprocesos@eco-reprocesos.com',
